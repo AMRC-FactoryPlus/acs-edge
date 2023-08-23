@@ -251,7 +251,7 @@ export class SparkplugNode extends (
                     // Strip the recordToDB property from the metric. It's served it's purpose by carrying our
                     // intentions to inform is_transient. Keeping it in the payload is a waste of space and could
                     // be confusing.
-                    let isTransient = metric.properties?.recordToDB.value === false ?? false;
+                    let isTransient = metric.properties?.recordToDB?.value === false ?? false;
                     if (typeof metric.properties?.recordToDB !== 'undefined') {
                         delete (metric.properties as any)?.recordToDB;
                     }
