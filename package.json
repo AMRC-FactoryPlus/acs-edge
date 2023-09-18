@@ -43,6 +43,7 @@
     "jsonpath-plus": "^5.0.7",
     "jsonpointer": "^5.0.1",
     "node-opcua": "^2.103.0",
+    "node-open-protocol": "^1.1.1",
     "sparkplug-client": "^3.2.2",
     "ts-node-dev": "^1.1.8",
     "uuid": "^9.0.0",
