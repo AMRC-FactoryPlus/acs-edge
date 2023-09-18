@@ -104,7 +104,8 @@
                             "REST",
                             "S7",
                             "UDP",
-                            "MTConnect"
+                            "MTConnect",
+                            "Open Protocol"
                         ],
                         "minLength": 1
                     },
@@ -198,6 +199,33 @@
                                 "type": "number",
                                 "title": "Keep Alive Interval (sec)",
                                 "default": 60
+                            }
+                        }
+                    },
+                    "OpenProtocolConnDetails": {
+                        "type": "object",
+                        "title": "Open Protocol Details",
+                        "options": {
+                            "dependencies": {
+                                "connType": "Open Protocol"
+                            },
+                            "collapsed": false
+                        },
+                        "required": [
+                            "host",
+                            "port"
+                        ],
+                        "properties": {
+                            "host": {
+                                "type": "string",
+                                "title": "Hostname/IP",
+                                "minLength": 1
+                            },
+                            "port": {
+                                "type": "number",
+                                "title": "Port",
+                                "minLength": 1,
+                                "default": 4545
                             }
                         }
                     },

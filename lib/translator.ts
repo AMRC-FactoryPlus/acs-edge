@@ -26,6 +26,10 @@ import {
     MQTTDevice
 } from "./devices/MQTT.js";
 import {
+    OpenProtocolDevice,
+    OpenProtocolConnection
+} from "./devices/openProtocol.js";
+import {
     UDPConnection,
     UDPDevice
 } from "./devices/UDP.js";
@@ -182,6 +186,13 @@ export class Translator extends EventEmitter {
                                 type: MQTTDevice,
                                 connection: MQTTConnection,
                                 connectionDetails: 'MQTTConnDetails'
+                            }
+                            break;
+                        case "Open Protocol":
+                            deviceInfo = {
+                                type: OpenProtocolDevice,
+                                connection: OpenProtocolConnection,
+                                connectionDetails: 'OpenProtocolConnDetails'
                             }
                             break;
                         case "Websocket":
