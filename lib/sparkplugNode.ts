@@ -507,6 +507,7 @@ export class SparkplugNode extends (
      */
     onError(error: Error) {
         log(`Client received error: ${error}`);
+        this.emit('stop');
     }
 
     /**
