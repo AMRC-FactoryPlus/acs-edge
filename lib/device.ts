@@ -277,8 +277,10 @@ export abstract class Device {
         let changedMetrics: sparkplugMetric[] = [];
         // Iterate through each key in obj
         for (let addr in obj) {
+
             // Get all payload paths registered for this address
             const paths = this._metrics.getPathsForAddr(addr);
+
             // Iterate through each path
             paths.forEach((path) => {
                 // Get the complete metric according to its address and path
@@ -286,10 +288,12 @@ export abstract class Device {
                 // If the metric can be read i.e. GET method
                 if (typeof metric.properties !== "undefined" && (metric.properties.method.value as string).search(
                     /^GET/g) > -1) {
+
                     // If the value is not to be parsed, or if so a path to the value is provided or there is only one
                     // value
                     if (!parseVals || (parseVals && ((typeof metric.properties.path !== "undefined" && metric.properties.path.value) || Object.keys(
                         obj).length == 1))) {
+
                         // Get new value either directly or by parsing
                         const newVal = parseVals ? parseValueFromPayload(obj[addr],
                             metric,

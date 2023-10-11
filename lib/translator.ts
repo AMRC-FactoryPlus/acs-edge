@@ -30,6 +30,10 @@ import {
     OpenProtocolConnection
 } from "./devices/openProtocol.js";
 import {
+    ASCIITCPConnection,
+    ASCIITCPDevice
+} from "./devices/ASCIITCP.js";
+import {
     UDPConnection,
     UDPDevice
 } from "./devices/UDP.js";
@@ -193,6 +197,13 @@ export class Translator extends EventEmitter {
                                 type: OpenProtocolDevice,
                                 connection: OpenProtocolConnection,
                                 connectionDetails: 'OpenProtocolConnDetails'
+                            }
+                            break;
+                        case "ASCII TCP":
+                            deviceInfo = {
+                                type: ASCIITCPDevice,
+                                connection: ASCIITCPConnection,
+                                connectionDetails: 'ASCIITCPConnDetails'
                             }
                             break;
                         case "Websocket":

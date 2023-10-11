@@ -12,7 +12,7 @@ import {MessageSecurityMode, SecurityPolicy} from "node-opcua";
 import {log} from "./log.js";
 
 export enum serialisationType {
-    ignored = "Defined by Protocol", delimited = "Delimited String", JSON = "JSON", XML = "XML", fixedBuffer = "Buffer", serialisedBuffer = "Buffer"
+    ignored = "Defined by Protocol", delimited = "Delimited String", JSON = "JSON", XML = "XML", fixedBuffer = "Buffer", serialisedBuffer = "Buffer", asciiHex = "ASCII HEX"
 }
 
 export enum sparkplugDataType {
@@ -379,6 +379,18 @@ export function parseValueFromPayload(msg: any, metric: sparkplugMetric, payload
             );
         case serialisationType.serialisedBuffer:
             break;
+        case serialisationType.asciiHex:
+            // Convert HEX to ASCII
+
+            // Remove any prefixed > characters
+            msg = msg.toString().replace(/^>/g, '');
+
+            console.log(msg);
+
+            // How do we handle the payload here? The following assumes ASCII, but maybe we need more options like binary, etc.
+            // The binary option should allow us to specify individual bits?
+
+            return Buffer.from(msg.toString(), 'hex').toString('ascii');
         default:
             break;
     }
