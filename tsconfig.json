@@ -1,11 +1,13 @@
 {
   "compilerOptions": {
-    "target": "ES6",
+    "target": "es2022",
+    "module": "es2022",
     "allowJs": true,
     "moduleResolution": "Node",
     "noImplicitAny": true,
-    "removeComments": true,
-    "preserveConstEnums": true,
+    "removeComments": false,
+    "newLine": "LF",
+    "preserveConstEnums": false,
     "sourceMap": false,
     "esModuleInterop": true,
     "outDir": "./build",

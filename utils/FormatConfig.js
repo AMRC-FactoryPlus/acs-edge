@@ -2,20 +2,18 @@
  *  Factory+ / AMRC Connectivity Stack (ACS) Edge component
  *  Copyright 2023 AMRC
  */
-
-import { schemaMetric, sparkplugDataType, sparkplugMetric, sparkplugTemplate } from "../lib/helpers/typeHandler.js";
-import * as secrets from "../lib/k8sSecrets.js";
+import { sparkplugDataType } from "../lib/helpers/typeHandler.js";
 // Temporary stop gap function to convert from old GUI conf format to actual Sparkplug format defined in typescript
-export function reHashConf(conf: any) {
-    conf.deviceConnections?.forEach((devConn: any, i: number) => {
-        devConn.devices?.forEach((dev: any, j: number) => {
+export function reHashConf(conf) {
+    conf.deviceConnections?.forEach((devConn, i) => {
+        devConn.devices?.forEach((dev, j) => {
             dev.pollInt = devConn.pollInt;
             dev.payloadFormat = devConn.payloadFormat;
             dev.delimiter = devConn.delimiter;
-            dev.templates?.forEach((template: any, k: number) => {
+            dev.templates?.forEach((template, k) => {
                 // conf.deviceConnections[i].devices[j].templates[k].isDefinition = true;
                 conf.deviceConnections[i].devices[j].templates[k].value = { metrics: [] };
-                template.metrics?.forEach((metric: schemaMetric) => {
+                template.metrics?.forEach((metric) => {
                     conf.deviceConnections[i].devices[j].templates[k].value.metrics.push({
                         name: metric.Name,
                         value: metric.value,
@@ -37,12 +35,12 @@ export function reHashConf(conf: any) {
                             }
                         }
                     });
-                })
+                });
                 delete conf.deviceConnections[i].devices[j].templates[k].metrics;
-            })
+            });
             conf.deviceConnections[i].devices[j].metrics = [];
-            dev.tags?.forEach((tag: schemaMetric) => {
-                const metric: sparkplugMetric = rehashTag(tag);
+            dev.tags?.forEach((tag) => {
+                const metric = rehashTag(tag);
                 // if (tag.type == "template") {
                 //     (metric.value as sparkplugTemplate).isDefinition = false;
                 //     (metric.value as sparkplugTemplate).templateRef = tag.templateRef;
@@ -51,17 +49,16 @@ export function reHashConf(conf: any) {
                 //     })
                 // }
                 conf.deviceConnections[i].devices[j].metrics.push(metric);
-            })
+            });
             delete conf.deviceConnections[i].devices[j].tags;
-        })
+        });
     });
     return conf;
 }
-
-export function rehashTag(tag: schemaMetric|any): sparkplugMetric {
+export function rehashTag(tag) {
     //add some formatting if the tag is string
     tag.type = tag.type.replace(/[BL]E/g, "");
-    if(tag.type == sparkplugDataType){
+    if (tag.type == sparkplugDataType) {
         lowerCaseType(tag.type);
     }
     return {
@@ -86,12 +83,11 @@ export function rehashTag(tag: schemaMetric|any): sparkplugMetric {
         }
     };
 }
-
 /**
  * Changes the first letter of a string to lower case
  * @param typeString type to alter case
- * @returns type with the first letter lower case 
+ * @returns type with the first letter lower case
  */
-var lowerCaseType = (typeString: string) : string => {
+var lowerCaseType = (typeString) => {
     return typeString.charAt(0).toUpperCase() + typeString.slice(1);
 };

@@ -22,8 +22,5 @@ config/secrets.json
 config/conf.json
 config/backups
 !config/.gitkeep
-lib/**/*.js*
 coverage
 build/
-*.js
-*.js.*
