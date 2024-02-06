@@ -60,6 +60,7 @@ import {
 } from "./device.js";
 import * as UUIDs from "./uuids.js";
 import {EventEmitter} from "events";
+import fs from "node:fs";
 
 /**
  * Translator class basically turns config file into instantiated classes
@@ -320,16 +321,36 @@ export class Translator extends EventEmitter {
     {
         const cdb = this.fplus.ConfigDB;
 
-        const [config, etag] = await this.retry("config",
+        let [config, etag] = await this.retry("config",
             () => cdb.get_config_with_etag(UUIDs.App.AgentConfig, uuid));
 
         log(`Fetched config with etag [${etag}]`);
 
         const valid = config && validateConfig(config);
+
+        // * Inject the secret values from the mounted secret.
+        // * Raise an alert if the secret is missing
+
+        // Replace all occurrences of __FPSI_<v4UUID> with the actual secret of the same name from /etc/secrets
+
+        // First, convert it to a string
+        const configString = JSON.stringify(config);
+
+        // Then, replace all occurrences of __FPSI_<v4UUID> with the actual secret of the same name from /etc/secrets
+        // ! This should work, or at least be at a good place to start testing
+        const secretReplacedConfig = configString.replace(/__FPSI_[a-f0-9-]{36}/g, (match) => {
+            // Get the secret contents from the file in /etc/secrets with the same name
+            return  JSON.parse(fs.readFileSync(`/etc/secrets/${match}`, 'utf8'));
+        });
+
+        // Then, convert it back to an object
+        config = JSON.parse(secretReplacedConfig);
+
         const conns = valid ? reHashConf(config).deviceConnections : [];
 
         if (!valid)
             log("Config is invalid or nonexistent, ignoring");
+
 
         const rv = {
             sparkplug: {
