@@ -4,42 +4,12 @@
  */
 
 import { schemaMetric, sparkplugDataType, sparkplugMetric, sparkplugTemplate } from "../lib/helpers/typeHandler.js";
-import * as secrets from "../lib/k8sSecrets.js";
-// Temporary stop gap function to convert from old GUI conf format to actual Sparkplug format defined in typescript
 export function reHashConf(conf: any) {
     conf.deviceConnections?.forEach((devConn: any, i: number) => {
         devConn.devices?.forEach((dev: any, j: number) => {
             dev.pollInt = devConn.pollInt;
             dev.payloadFormat = devConn.payloadFormat;
             dev.delimiter = devConn.delimiter;
-            dev.templates?.forEach((template: any, k: number) => {
-                // conf.deviceConnections[i].devices[j].templates[k].isDefinition = true;
-                conf.deviceConnections[i].devices[j].templates[k].value = { metrics: [] };
-                template.metrics?.forEach((metric: schemaMetric) => {
-                    conf.deviceConnections[i].devices[j].templates[k].value.metrics.push({
-                        name: metric.Name,
-                        value: metric.value,
-                        type: lowerCaseType(metric.type.replace(/[BL]E/g, "")),
-                        isTransient: !metric.recordToDB,
-                        properties: {
-                            method: { value: metric.method || null, type: sparkplugDataType.string },
-                            address: { value: metric.address || null, type: sparkplugDataType.string },
-                            path: { value: metric.path || null, type: sparkplugDataType.string },
-                            engUnit: { value: metric.engUnit || null, type: sparkplugDataType.string },
-                            engLow: { value: metric.engLow || null, type: sparkplugDataType.float },
-                            engHigh: { value: metric.engHigh || null, type: sparkplugDataType.float },
-                            deadband: { value: metric.deadBand || null, type: sparkplugDataType.string },
-                            tooltip: { value: metric.tooltip || null, type: sparkplugDataType.string },
-                            documentation: { value: metric.docs || null, type: sparkplugDataType.string },
-                            endianness: {
-                                value: (metric.type.endsWith("BE") ? 4321 : metric.type.endsWith("LE") ? 1234 : null),
-                                type: sparkplugDataType.uInt16
-                            }
-                        }
-                    });
-                })
-                delete conf.deviceConnections[i].devices[j].templates[k].metrics;
-            })
             conf.deviceConnections[i].devices[j].metrics = [];
             dev.tags?.forEach((tag: schemaMetric) => {
                 const metric: sparkplugMetric = rehashTag(tag);
