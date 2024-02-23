@@ -48,9 +48,7 @@ export class EtherNetIPConnection extends DeviceConnection {
                 console.log(err);
 
                 // Schedule the next attempt, capping the delay at maxDelay
-                setTimeout(() => {
-                    attemptConnect(); // Try to connect again after the delay
-                }, delay);
+                setTimeout(attemptConnect, delay);
                 delay = Math.min(delay * 2, maxDelay); // Double the delay for the next attempt, but do not exceed maxDelay
             });
         };
