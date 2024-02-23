@@ -80,36 +80,34 @@ export class EtherNetIPConnection extends DeviceConnection {
 
         // Double check that the payload format is correct for EtherNet/IP. We only currently support the Buffer
         // payload format.
-        if (payloadFormat && payloadFormat === "Buffer") {
-            // Read each metric (that has an address) from the device and for each unique address, go and get the data.
-            await Promise.all(metrics.addresses.map(async (addr) => {
-
-                if (addr && addr !== 'undefined') {
-
-                    // The metric address selector for EtherNet/IP is in the format "classId,instance,attribute"
-                    // (e.g. "3,108,4")
-                    const splitAddress = addr.split(',');
-                    const classId = parseInt(splitAddress[0]);
-                    const instance = parseInt(splitAddress[1]);
-                    const attribute = parseInt(splitAddress[2]);
-
-                    this.#client.getAttributeSingle(classId, instance, attribute).then((val: Buffer) => {
-
-                        let obj: any = {};
-                        obj[addr] = val;
-
-                        this.emit('data', obj);
-
-                    }).catch((err: any) => {
-                        log('Error reading metric:');
-                        console.log(err);
-                    });
-                }
-
-            }));
-        } else {
+        if (payloadFormat !== "Buffer") {
             log("Buffer payload format is required for an EtherNet/IP connection.")
+            return;
         }
+
+        // Read each metric (that has an address) from the device and for each unique address, go and get the data.
+        metrics.addresses.filter(e => e && e !== 'undefined').forEach((addr) => {
+
+            // The metric address selector for EtherNet/IP is in the format "classId,instance,attribute"
+            // (e.g. "3,108,4")
+            const splitAddress = addr.split(',');
+            const classId = parseInt(splitAddress[0]);
+            const instance = parseInt(splitAddress[1]);
+            const attribute = parseInt(splitAddress[2]);
+
+            this.#client.getAttributeSingle(classId, instance, attribute).then((val: Buffer) => {
+
+                let obj: any = {};
+                obj[addr] = val;
+
+                this.emit('data', obj);
+
+            }).catch((err: any) => {
+                log('Error reading metric:');
+                console.log(err);
+            });
+
+        })
     }
 
     /**
