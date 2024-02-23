@@ -13,7 +13,7 @@ export function reHashConf(conf: any) {
             dev.delimiter = devConn.delimiter;
             conf.deviceConnections[i].devices[j].metrics = [];
             dev.tags?.forEach((tag: schemaMetric) => {
-                conf.deviceConnections[i].devices[j].metrics.push(extractEndianness(tag));
+                conf.deviceConnections[i].devices[j].metrics.push(buildTagObject(tag));
             })
             delete conf.deviceConnections[i].devices[j].tags;
         })
@@ -21,7 +21,7 @@ export function reHashConf(conf: any) {
     return conf;
 }
 
-function extractEndianness(tag: schemaMetric|any): sparkplugMetric {
+function buildTagObject(tag: schemaMetric|any): sparkplugMetric {
 
     // Store the endianness of the tag, if it has one
     const endianness = (tag.type.endsWith("BE") ? 4321 : tag.type.endsWith("LE") ? 1234 : null);
