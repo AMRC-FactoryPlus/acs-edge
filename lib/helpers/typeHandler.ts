@@ -592,7 +592,7 @@ export function typeLens(type: string): number {
  * @returns Value parsed from buffer
  */
 export function parseValFromBuffer(type: sparkplugDataType, endianness: byteOrder, byteAddr: number, buf: Buffer, bit?: number): any {
-    // Reads in a variable of the specified metric.type type from buffer buf starting at position byteAddr
+
     switch (type) {
         case sparkplugDataType.boolean:
             if (bit) {
