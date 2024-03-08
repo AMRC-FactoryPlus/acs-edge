@@ -192,33 +192,64 @@ export class Translator extends EventEmitter {
         });
 
         const server = net.createServer((socket) => {
+            let buffer = '';
+
             // Handle incoming data from the driver container
-            socket.on('data', (data) => {
+            socket.on('data', (chunk) => {
+                buffer += chunk.toString(); // Append incoming data to buffer
 
-                // Split data by newline to handle multiple messages
-                const messages = data.toString().split('\n');
+                // Check for complete messages ending with a newline
+                const messages = buffer.split('\0');
 
-                messages.forEach((message) => {
+
+                // Iterate through complete messages (excluding the last potentially incomplete one)
+                messages.slice(0, messages.length - 1).forEach((message) => {
                     if (message) {
                         try {
                             // Parse JSON string to object, assuming UTF-8 encoding
-                            const obj: { [key: string]: any } = JSON.parse(message, 'utf8');
+                            let obj;
+                            try {
+                                obj = JSON.parse(message);
+                            } catch (err) {
+                                console.error('Error parsing JSON. Current buffer:', message);
+                                return;
+                            }
 
                             const data = obj.obj;
                             const parseVals = obj.parseVals;
-
                             connection.devices?.forEach((devConf: deviceOptions) => {
+
+                                // Go through each key in data and if it has a type of "Buffer" then replace the
+                                // value with a Buffer object containing obj.data
+                                Object.keys(data).forEach((key) => {
+                                    if (typeof data[key] === 'object' && data[key].type === 'Buffer') {
+                                        data[key] = Buffer.from(data[key].data);
+                                    }
+                                });
+
                                 this.devices[devConf.deviceId]?._handleData(data, parseVals); // Assuming _handleData exists
                             });
                         } catch (err) {
-                            console.error('Error parsing JSON:', err);
+                            console.log(err);
                         }
                     }
                 });
+
+                // Update buffer to keep any remaining incomplete message for next data chunk
+                buffer = messages[messages.length - 1] || ''; // Keep the last potentially incomplete message
             });
         });
 
-        server.listen('/path/to/unix/socket', () => {
+        // Delete the socket file if it exists
+        server.on('error', (err) => {
+            // @ts-ignore
+            if (err.code === 'EADDRINUSE') {
+                fs.unlinkSync('./edge-agent.sock');
+                server.listen('./edge-agent.sock');
+            }
+        });
+
+        server.listen('./edge-agent.sock', () => {
             console.log('Core container listening on Unix socket');
         });
 

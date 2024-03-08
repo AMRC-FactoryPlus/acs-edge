@@ -23,6 +23,7 @@ export default interface etherNetIPConnDetails {
 export class EtherNetIPConnection extends DeviceConnection {
     #client: Controller
     #connDetails: etherNetIPConnDetails
+    #socket: net.Socket | null = null;
 
     constructor(type: string, connDetails: etherNetIPConnDetails) {
         super(type);
@@ -84,46 +85,46 @@ export class EtherNetIPConnection extends DeviceConnection {
             return;
         }
 
-        const socketPath = '/path/to/unix/socket';
+        // Check if the socket is created and open
 
-        return new Promise<void>((resolve, reject) => {
-            const socket = net.createConnection(socketPath);
+        if (!this.#socket) {
+            const socketPath = './edge-agent.sock';
+            this.#socket = net.createConnection(socketPath);
 
-            socket.on('connect', () => {
-                metrics.addresses.filter(e => e && e !== 'undefined').forEach((addr) => {
-                    // The metric address selector for EtherNet/IP is in the format "classId,instance,attribute"
-                    // (e.g. "3,108,4")
-                    const splitAddress = addr.split(',');
-                    const classId = parseInt(splitAddress[0]);
-                    const instance = parseInt(splitAddress[1]);
-                    const attribute = parseInt(splitAddress[2]);
-
-                    this.#client.getAttributeSingle(classId, instance, attribute)
-                        .then((val: Buffer) => {
-                            let obj: { [key: string]: any } = {};
-                            obj[addr] = val;
-
-                            // Convert object to JSON string with appropriate encoding
-                            const jsonData = JSON.stringify({obj, parseVals: true}, null, 2); // Add indentation for
-
-                            socket.write(jsonData + '\n', 'utf8'); // Write JSON with newline and encoding
-                        })
-                        .catch((err: any) => {
-                            log('Error reading metric:');
-                            console.log(err);
-                        });
-                });
-
-                socket.on('drain', () => {
-                    socket.end();
-                    resolve();
-                });
-            });
-
-            socket.on('error', (err) => {
+            // Handle socket errors and closing:
+            this.#socket.on('error', (err) => {
                 console.error('Socket error:', err);
-                reject(err);
+                close();
+                return;
             });
+
+            process.on('exit', () => {
+                this.#socket?.destroy();
+            });
+        }
+
+        metrics.addresses.filter(e => e && e !== 'undefined').forEach((addr) => {
+            // The metric address selector for EtherNet/IP is in the format "classId,instance,attribute"
+            // (e.g. "3,108,4")
+            const splitAddress = addr.split(',');
+            const classId = parseInt(splitAddress[0]);
+            const instance = parseInt(splitAddress[1]);
+            const attribute = parseInt(splitAddress[2]);
+
+            this.#client.getAttributeSingle(classId, instance, attribute)
+                .then((val: Buffer) => {
+                    let obj: { [key: string]: any } = {};
+                    obj[addr] = val;
+
+                    // Convert object to JSON string with appropriate encoding
+                    const jsonData = JSON.stringify({obj, parseVals: true});
+
+                    this.#socket?.write(jsonData + '\0', 'utf8');
+                })
+                .catch((err: any) => {
+                    log('Error reading metric:');
+                    console.log(err);
+                });
         });
     }
 
