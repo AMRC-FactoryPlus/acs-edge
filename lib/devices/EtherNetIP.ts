@@ -8,6 +8,7 @@ import {log} from "../helpers/log.js";
 import {SparkplugNode} from "../sparkplugNode.js";
 import {Metrics, serialisationType} from "../helpers/typeHandler.js";
 import {Controller} from 'st-ethernet-ip'
+import * as net from 'net';
 
 /**
  * Define structure of options for device connection
@@ -79,33 +80,51 @@ export class EtherNetIPConnection extends DeviceConnection {
         // Double check that the payload format is correct for EtherNet/IP. We only currently support the Buffer
         // payload format.
         if (payloadFormat !== "Buffer") {
-            log("Buffer payload format is required for an EtherNet/IP connection.")
+            log("Buffer payload format is required for an EtherNet/IP connection.");
             return;
         }
 
-        // Read each metric (that has an address) from the device and for each unique address, go and get the data.
-        metrics.addresses.filter(e => e && e !== 'undefined').forEach((addr) => {
+        const socketPath = '/path/to/unix/socket';
 
-            // The metric address selector for EtherNet/IP is in the format "classId,instance,attribute"
-            // (e.g. "3,108,4")
-            const splitAddress = addr.split(',');
-            const classId = parseInt(splitAddress[0]);
-            const instance = parseInt(splitAddress[1]);
-            const attribute = parseInt(splitAddress[2]);
+        return new Promise<void>((resolve, reject) => {
+            const socket = net.createConnection(socketPath);
 
-            this.#client.getAttributeSingle(classId, instance, attribute).then((val: Buffer) => {
+            socket.on('connect', () => {
+                metrics.addresses.filter(e => e && e !== 'undefined').forEach((addr) => {
+                    // The metric address selector for EtherNet/IP is in the format "classId,instance,attribute"
+                    // (e.g. "3,108,4")
+                    const splitAddress = addr.split(',');
+                    const classId = parseInt(splitAddress[0]);
+                    const instance = parseInt(splitAddress[1]);
+                    const attribute = parseInt(splitAddress[2]);
 
-                let obj: any = {};
-                obj[addr] = val;
+                    this.#client.getAttributeSingle(classId, instance, attribute)
+                        .then((val: Buffer) => {
+                            let obj: { [key: string]: any } = {};
+                            obj[addr] = val;
 
-                this.emit('data', obj);
+                            // Convert object to JSON string with appropriate encoding
+                            const jsonData = JSON.stringify({obj, parseVals: true}, null, 2); // Add indentation for
 
-            }).catch((err: any) => {
-                log('Error reading metric:');
-                console.log(err);
+                            socket.write(jsonData + '\n', 'utf8'); // Write JSON with newline and encoding
+                        })
+                        .catch((err: any) => {
+                            log('Error reading metric:');
+                            console.log(err);
+                        });
+                });
+
+                socket.on('drain', () => {
+                    socket.end();
+                    resolve();
+                });
             });
 
-        })
+            socket.on('error', (err) => {
+                console.error('Socket error:', err);
+                reject(err);
+            });
+        });
     }
 
     /**

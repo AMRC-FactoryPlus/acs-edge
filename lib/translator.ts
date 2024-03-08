@@ -31,6 +31,7 @@ import {Device, deviceOptions} from "./device.js";
 import * as UUIDs from "./uuids.js";
 import {EventEmitter} from "events";
 import fs from "node:fs";
+import * as net from 'net';
 
 /**
  * Translator class basically turns config file into instantiated classes
@@ -190,12 +191,36 @@ export class Translator extends EventEmitter {
             })
         });
 
-        // What to do when the device connection has new data from a device
-        newConn.on('data', (obj: { [index: string]: any }, parseVals = true) => {
-            connection.devices?.forEach((devConf: deviceOptions) => {
-                this.devices[devConf.deviceId]?._handleData(obj, parseVals);
-            })
-        })
+        const server = net.createServer((socket) => {
+            // Handle incoming data from the driver container
+            socket.on('data', (data) => {
+
+                // Split data by newline to handle multiple messages
+                const messages = data.toString().split('\n');
+
+                messages.forEach((message) => {
+                    if (message) {
+                        try {
+                            // Parse JSON string to object, assuming UTF-8 encoding
+                            const obj: { [key: string]: any } = JSON.parse(message, 'utf8');
+
+                            const data = obj.obj;
+                            const parseVals = obj.parseVals;
+
+                            connection.devices?.forEach((devConf: deviceOptions) => {
+                                this.devices[devConf.deviceId]?._handleData(data, parseVals); // Assuming _handleData exists
+                            });
+                        } catch (err) {
+                            console.error('Error parsing JSON:', err);
+                        }
+                    }
+                });
+            });
+        });
+
+        server.listen('/path/to/unix/socket', () => {
+            console.log('Core container listening on Unix socket');
+        });
 
         // What to do when device connection dies
         newConn.on('close', () => {
