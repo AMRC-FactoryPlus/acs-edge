@@ -31,6 +31,7 @@ import {Device, deviceOptions} from "./device.js";
 import * as UUIDs from "./uuids.js";
 import {EventEmitter} from "events";
 import fs from "node:fs";
+import * as net from 'net';
 
 /**
  * Translator class basically turns config file into instantiated classes
@@ -190,12 +191,67 @@ export class Translator extends EventEmitter {
             })
         });
 
-        // What to do when the device connection has new data from a device
-        newConn.on('data', (obj: { [index: string]: any }, parseVals = true) => {
-            connection.devices?.forEach((devConf: deviceOptions) => {
-                this.devices[devConf.deviceId]?._handleData(obj, parseVals);
-            })
-        })
+        const server = net.createServer((socket) => {
+            let buffer = '';
+
+            // Handle incoming data from the driver container
+            socket.on('data', (chunk) => {
+                buffer += chunk.toString(); // Append incoming data to buffer
+
+                // Check for complete messages ending with a newline
+                const messages = buffer.split('\0');
+
+
+                // Iterate through complete messages (excluding the last potentially incomplete one)
+                messages.slice(0, messages.length - 1).forEach((message) => {
+                    if (message) {
+                        try {
+                            // Parse JSON string to object, assuming UTF-8 encoding
+                            let obj;
+                            try {
+                                obj = JSON.parse(message);
+                            } catch (err) {
+                                console.error('Error parsing JSON. Current buffer:', message);
+                                return;
+                            }
+
+                            const data = obj.obj;
+                            const parseVals = obj.parseVals;
+                            connection.devices?.forEach((devConf: deviceOptions) => {
+
+                                // Go through each key in data and if it has a type of "Buffer" then replace the
+                                // value with a Buffer object containing obj.data
+                                Object.keys(data).forEach((key) => {
+                                    if (typeof data[key] === 'object' && data[key].type === 'Buffer') {
+                                        data[key] = Buffer.from(data[key].data);
+                                    }
+                                });
+
+                                this.devices[devConf.deviceId]?._handleData(data, parseVals); // Assuming _handleData exists
+                            });
+                        } catch (err) {
+                            console.log(err);
+                        }
+                    }
+                });
+
+                // Update buffer to keep any remaining incomplete message for next data chunk
+                buffer = messages[messages.length - 1] || ''; // Keep the last potentially incomplete message
+            });
+        });
+
+        // Delete the socket file if it exists
+        server.on('error', (err) => {
+            // @ts-ignore
+            if (err.code === 'EADDRINUSE') {
+                fs.unlinkSync('./edge-agent.sock');
+                server.listen('./edge-agent.sock');
+            }
+        });
+
+        server.listen('./edge-agent.sock', () => {
+            console.log('Core container listening on Unix socket');
+        });
 
         // What to do when device connection dies
         newConn.on('close', () => {

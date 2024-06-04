@@ -8,6 +8,7 @@ import {log} from "../helpers/log.js";
 import {SparkplugNode} from "../sparkplugNode.js";
 import {Metrics, serialisationType} from "../helpers/typeHandler.js";
 import {Controller} from 'st-ethernet-ip'
+import * as net from 'net';
 
 /**
  * Define structure of options for device connection
@@ -22,6 +23,7 @@ export default interface etherNetIPConnDetails {
 export class EtherNetIPConnection extends DeviceConnection {
     #client: Controller
     #connDetails: etherNetIPConnDetails
+    #socket: net.Socket | null = null;
 
     constructor(type: string, connDetails: etherNetIPConnDetails) {
         super(type);
@@ -79,13 +81,29 @@ export class EtherNetIPConnection extends DeviceConnection {
         // Double check that the payload format is correct for EtherNet/IP. We only currently support the Buffer
         // payload format.
         if (payloadFormat !== "Buffer") {
-            log("Buffer payload format is required for an EtherNet/IP connection.")
+            log("Buffer payload format is required for an EtherNet/IP connection.");
             return;
         }
 
-        // Read each metric (that has an address) from the device and for each unique address, go and get the data.
-        metrics.addresses.filter(e => e && e !== 'undefined').forEach((addr) => {
+        // Check if the socket is created and open
 
+        if (!this.#socket) {
+            const socketPath = './edge-agent.sock';
+            this.#socket = net.createConnection(socketPath);
+
+            // Handle socket errors and closing:
+            this.#socket.on('error', (err) => {
+                console.error('Socket error:', err);
+                close();
+                return;
+            });
+
+            process.on('exit', () => {
+                this.#socket?.destroy();
+            });
+        }
+
+        metrics.addresses.filter(e => e && e !== 'undefined').forEach((addr) => {
             // The metric address selector for EtherNet/IP is in the format "classId,instance,attribute"
             // (e.g. "3,108,4")
             const splitAddress = addr.split(',');
@@ -93,19 +111,21 @@ export class EtherNetIPConnection extends DeviceConnection {
             const instance = parseInt(splitAddress[1]);
             const attribute = parseInt(splitAddress[2]);
 
-            this.#client.getAttributeSingle(classId, instance, attribute).then((val: Buffer) => {
+            this.#client.getAttributeSingle(classId, instance, attribute)
+                .then((val: Buffer) => {
+                    let obj: { [key: string]: any } = {};
+                    obj[addr] = val;
 
-                let obj: any = {};
-                obj[addr] = val;
+                    // Convert object to JSON string with appropriate encoding
+                    const jsonData = JSON.stringify({obj, parseVals: true});
 
-                this.emit('data', obj);
-
-            }).catch((err: any) => {
-                log('Error reading metric:');
-                console.log(err);
-            });
-
-        })
+                    this.#socket?.write(jsonData + '\0', 'utf8');
+                })
+                .catch((err: any) => {
+                    log('Error reading metric:');
+                    console.log(err);
+                });
+        });
     }
 
     /**
